@@ -40,18 +40,43 @@ export default function Home() {
   const [selectedGift, setSelectedGift] = useState("");
   const [customGift, setCustomGift] = useState("");
   const [isSelectingGift, setIsSelectingGift] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsLoading(true);
 
     if (!selectedName) {
       setMessage("Please select a name.");
+      setIsLoading(false);
       return;
     }
 
-    // Set the selected ID to trigger animations
+    // Check if name already exists in database
+    const { data: existingEntry, error: fetchError } = await supabase
+      .from("selections")
+      .select("*")
+      .eq("selected_name", selectedName)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      // PGRST116 is "no rows returned"
+      console.error(fetchError);
+      setMessage("An error occurred while checking the selection.");
+      setIsLoading(false);
+      return;
+    }
+
+    if (existingEntry) {
+      setMessage(`${selectedName} jau buvo pasirinktas!`);
+      setIsLoading(false);
+      return;
+    }
+
+    // Proceed with existing logic
     const selectedPerson = names.find((n) => n.name === selectedName);
     setSelectedId(selectedPerson?.id || null);
+    setIsLoading(false);
 
     // Show guessing step after a brief delay
     setTimeout(() => {
@@ -108,6 +133,7 @@ export default function Home() {
             exit={{ opacity: 0 }}
             className="flex flex-col items-center"
           >
+            {message && <p className="mb-4 text-red-500">{message}</p>}
             <h1 className="mb-6 text-3xl font-bold text-black">
               Pasirink ka istraukei?
             </h1>
@@ -151,8 +177,8 @@ export default function Home() {
                 </div>
               </RadioGroup>
 
-              <Button type="submit" className="mt-4">
-                Toliau
+              <Button type="submit" disabled={isLoading} className="mt-4">
+                {isLoading ? "Tikrinama..." : "Toliau"}
               </Button>
             </form>
           </motion.div>
