@@ -4,19 +4,32 @@ import { supabase } from "@/lib/supabase";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { motion, AnimatePresence } from "motion/react";
+import Alanys from "@/assets/alanys.png";
+import Jokse from "@/assets/jokse.png";
+import Kornis from "@/assets/kornis.png";
+import Ignas from "@/assets/ignas.png";
+import Rokas from "@/assets/rokas.png";
+import Karke from "@/assets/karke.png";
+import Arunce from "@/assets/arunce.png";
+import Image from "next/image";
 
 export default function Home() {
   const [names, setNames] = useState([
-    { id: 1, name: "Kornis" },
-    { id: 2, name: "Ignas" },
-    { id: 3, name: "Rokas" },
-    { id: 4, name: "Karke" },
-    { id: 5, name: "Jokubas" },
-    { id: 6, name: "Alanas" },
-    { id: 7, name: "Arunce" },
+    { id: 1, name: "Kornis", image: Kornis },
+    { id: 2, name: "Ignas", image: Ignas },
+    { id: 3, name: "Rokas", image: Rokas },
+    { id: 4, name: "Karke", image: Karke },
+    { id: 5, name: "Jokse", image: Jokse },
+    { id: 6, name: "Alanys", image: Alanys },
+    { id: 7, name: "Arunce", image: Arunce },
   ]);
   const [selectedName, setSelectedName] = useState("");
   const [message, setMessage] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [isDrafted, setIsDrafted] = useState(false);
+  const [isGuessing, setIsGuessing] = useState(false);
+  const [guessedName, setGuessedName] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,64 +39,165 @@ export default function Home() {
       return;
     }
 
-    // Check if the name has already been selected
-    const { data: existingSelection, error: selectError } = await supabase
-      .from("selections")
-      .select("*")
-      .eq("selected_name", selectedName)
-      .single();
+    // Set the selected ID to trigger animations
+    const selectedPerson = names.find((n) => n.name === selectedName);
+    setSelectedId(selectedPerson?.id || null);
 
-    if (selectError && selectError.code !== "PGRST116") {
-      // PGRST116 is the code for 'No rows found'
-      console.error(selectError);
-      setMessage("An error occurred.");
+    // Show guessing step after a brief delay
+    setTimeout(() => {
+      setIsGuessing(true);
+    }, 500);
+  };
+
+  const handleGuessSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!guessedName) {
+      setMessage("Please select a guess.");
       return;
     }
 
-    if (existingSelection) {
-      setMessage(
-        "This person has already been selected. Please choose another.",
-      );
-      return;
-    }
-
-    // Save the selection to the database
-    const { data, error } = await supabase
-      .from("selections")
-      .insert([{ selected_name: selectedName }]);
+    // Save both selected name and guessed name to database
+    const { data, error } = await supabase.from("selections").insert([
+      {
+        selected_name: selectedName,
+        guessed_name: guessedName,
+      },
+    ]);
 
     if (error) {
       console.error(error);
       setMessage("An error occurred while saving your selection.");
     } else {
-      setMessage("Your selection has been saved successfully!");
+      setIsDrafted(true);
     }
   };
-  console.log(names);
 
   return (
     <div className="container mx-auto flex min-h-svh flex-col items-center justify-center p-4">
-      <h1 className="mb-4 text-3xl font-bold text-black">Select your person</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col">
-        <RadioGroup value={selectedName} onValueChange={setSelectedName}>
-          {names.map((name) => (
-            <label
-              htmlFor={name.name}
-              className="flex min-w-72 cursor-pointer items-center space-x-2 rounded-lg border p-4"
-              key={name.id}
-            >
-              <RadioGroupItem key={name.id} value={name.name} id={name.name} />
+      <AnimatePresence mode="wait">
+        {!isGuessing && !isDrafted ? (
+          <motion.div
+            key="selection"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center"
+          >
+            <h1 className="mb-6 text-3xl font-bold text-black">
+              Pasirink ka istraukei?
+            </h1>
+            <form onSubmit={handleSubmit} className="flex flex-col">
+              <RadioGroup value={selectedName} onValueChange={setSelectedName}>
+                <div className="relative">
+                  <AnimatePresence mode="popLayout">
+                    {names.map((name) => {
+                      const isVisible = !selectedId || selectedId === name.id;
+                      return isVisible ? (
+                        <motion.label
+                          key={name.id}
+                          layoutId={`name-${name.id}`}
+                          htmlFor={name.name}
+                          className="mb-2 flex min-w-72 cursor-pointer items-center justify-between space-x-2 rounded-lg border p-4"
+                          initial={{ opacity: 1 }}
+                          animate={{ opacity: 1 }}
+                          exit={{
+                            opacity: 0,
+                            transition: { duration: 0.15 },
+                          }}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value={name.name} id={name.name} />
+                            <Label>{name.name}</Label>
+                          </div>
+                          <motion.div
+                            className="h-8 w-8 overflow-hidden rounded-full"
+                            layoutId={`avatar-${name.id}`}
+                          >
+                            <Image
+                              src={name.image}
+                              alt={name.name}
+                              width={64}
+                              height={64}
+                              className="h-full w-full object-cover"
+                            />
+                          </motion.div>
+                        </motion.label>
+                      ) : null;
+                    })}
+                  </AnimatePresence>
+                </div>
+              </RadioGroup>
 
-              <Label>{name.name}</Label>
-            </label>
-          ))}
-        </RadioGroup>
+              <Button type="submit" className="mt-4">
+                Toliau
+              </Button>
+            </form>
+          </motion.div>
+        ) : isGuessing && !isDrafted ? (
+          <motion.div
+            key="guessing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center"
+          >
+            <h2 className="mb-4 text-2xl font-bold">
+              Spek ka {selectedName} istrauke?
+            </h2>
+            <form onSubmit={handleGuessSubmit} className="flex flex-col">
+              <RadioGroup value={guessedName} onValueChange={setGuessedName}>
+                <div className="relative">
+                  {names
+                    .filter((name) => name.name !== selectedName)
+                    .map((name) => (
+                      <motion.label
+                        key={name.id}
+                        htmlFor={`guess-${name.name}`}
+                        className="mb-2 flex min-w-72 cursor-pointer items-center justify-between space-x-2 rounded-lg border p-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value={name.name}
+                            id={`guess-${name.name}`}
+                          />
+                          <Label>{name.name}</Label>
+                        </div>
+                        <div className="h-8 w-8 overflow-hidden rounded-full">
+                          <Image
+                            src={name.image}
+                            alt={name.name}
+                            width={64}
+                            height={64}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      </motion.label>
+                    ))}
+                </div>
+              </RadioGroup>
 
-        <Button type="submit" className="mt-4">
-          Continue
-        </Button>
-      </form>
-      {message && <p className="mt-4">{message}</p>}
+              <Button type="submit" className="mt-4">
+                Tvirtinti
+              </Button>
+            </form>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="drafted"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            <h2 className="mb-2 text-2xl font-bold">
+              Sekmingai uzpildytas raffle!
+            </h2>
+            <p className="text-xl text-gray-600">
+              Spejimas: <strong>{selectedName}</strong> istrauke{" "}
+              <strong>{guessedName}</strong>.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
