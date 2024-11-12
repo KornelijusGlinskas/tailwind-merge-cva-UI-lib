@@ -324,7 +324,7 @@ export default function Home() {
               <div className="text-center">
                 <div className="mx-auto mb-2 size-24 overflow-hidden rounded-full border">
                   <Image
-                    src={names.find((n) => n.name === guessedName)?.image}
+                    src={names.find((n) => n.name === guessedName)!.image}
                     alt={guessedName}
                     width={96}
                     height={96}
